@@ -6,8 +6,8 @@ public record PhoneDto(
         Long id,
         String brand,
         String model,
-        String image,
         double price,
+        String imagePath,
         String condition
 ) {
     public static PhoneDto toDto(PhoneEntity phoneEntity) {
@@ -15,8 +15,8 @@ public record PhoneDto(
                 phoneEntity.getId(),
                 phoneEntity.getBrand(),
                 phoneEntity.getModel(),
-                phoneEntity.getImage(),
                 phoneEntity.getPrice(),
+                phoneEntity.getImage(),
                 phoneEntity.getCondition()
         );
     }

@@ -32,7 +32,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-	implementation 'org.telegram:telegrambots-spring-boot-starter:6.0.1'
+	implementation 'org.telegram:telegrambots-spring-boot-starter:6.1.0'
 	implementation 'javax.xml.bind:jaxb-api:2.3.1'
 	implementation 'org.glassfish.jaxb:jaxb-runtime:2.3.1'
 }
@@ -40,3 +40,5 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+

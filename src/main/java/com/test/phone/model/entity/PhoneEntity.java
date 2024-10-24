@@ -22,16 +22,15 @@ public class PhoneEntity {
     @Column(nullable = false, length = 50)
     private String model;
 
-    @Column(nullable = false)
-    private String image;
-
     @Column(nullable = false, columnDefinition = "DECIMAL(10, 1)")
     private double price;
+
+    private String image;
 
     @Column(name = "`condition`", length = 20, nullable = false, columnDefinition = "VARCHAR(20) DEFAULT 'used'")
     private String condition;
 
-    public static PhoneEntity of(String brand, String model, String image, double price, String condition) {
+    public static PhoneEntity of(String brand, String model, double price, String image, String condition) {
         PhoneEntity phoneEntity = new PhoneEntity();
         phoneEntity.setBrand(brand);
         phoneEntity.setModel(model);
@@ -46,8 +45,8 @@ public class PhoneEntity {
                 phoneDto.id(),
                 phoneDto.brand(),
                 phoneDto.model(),
-                phoneDto.image(),
                 phoneDto.price(),
+                phoneDto.imagePath(),
                 phoneDto.condition()
         );
     }

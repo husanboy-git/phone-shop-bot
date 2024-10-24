@@ -18,3 +18,6 @@ telegram:
   bot:
     username: "@OldPhoneBot"
     token: "8163853097:AAGpjtmupYG4rjeCNcV5xq5z4e2ltTCBKeU"
+
+admin:
+  password: "Java2023"
