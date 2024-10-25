@@ -98,8 +98,6 @@ public class PhoneBot extends TelegramLongPollingBot {
                     handlePhoneBrandSelection(chatId, messageText);
                 } else if (messageText.startsWith("/addphone")) {
                     handleAddPhoneCommand(chatId, messageText, telegramId);
-                } else if (messageText.startsWith("/deletephone")) {
-                    handleDeletePhoneCommand(chatId, messageText, telegramId);
                 }
             }
 
@@ -287,8 +285,6 @@ public class PhoneBot extends TelegramLongPollingBot {
         }
     }
 
-
-
     private void handleAddPhoneCommand(Long chatId, String messageText, Long telegramId) {
         Optional<UserDto> user = userService.getUserByTelegramId(telegramId);
 
@@ -307,26 +303,6 @@ public class PhoneBot extends TelegramLongPollingBot {
                 userState.put(chatId, WAITING_FOR_PHOTO);
             } else {
                 sendMessage(chatId, "형식이 올바르지 않습니다. /addphone [브랜드] [모델] [가격] [상태] 형식으로 입력해 주세요.");
-            }
-        } else {
-            sendMessage(chatId, "이 명령어를 사용할 권한이 없습니다.");
-        }
-    }
-
-    private void handleDeletePhoneCommand(Long chatId, String messageText, Long telegramId) {
-        Optional<UserDto> user = userService.getUserByTelegramId(telegramId);
-        if (user.isPresent() && user.get().role() == Role.ADMIN) {
-            String[] parts = messageText.split(" ", 2);
-            if (parts.length == 2) {
-                String model = parts[1];
-                boolean isDeleted = phoneService.deletePhoneByModel(model);
-                if (isDeleted) {
-                    sendMessage(chatId, "휴대폰이 성공적으로 삭제되었습니다: " + model);
-                } else {
-                    sendMessage(chatId, "해당 모델을 찾을 수 없습니다: " + model);
-                }
-            } else {
-                sendMessage(chatId, "형식이 올바르지 않습니다. /deletephone [모델] 형식으로 입력해 주세요.");
             }
         } else {
             sendMessage(chatId, "이 명령어를 사용할 권한이 없습니다.");

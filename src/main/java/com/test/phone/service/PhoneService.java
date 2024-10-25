@@ -19,11 +19,6 @@ import java.util.Optional;
 public class PhoneService {
     @Autowired private PhoneRepository phoneRepository;
 
-    public List<PhoneDto> getAllPhones() {
-        List<PhoneEntity> entities = phoneRepository.findAll();
-        return entities.stream().map(PhoneDto::toDto).toList();
-    }
-
     public List<PhoneDto> getPhonesByBrand(String brand) {
         List<PhoneEntity> byBrand = phoneRepository.findByBrand(brand);
         return byBrand.stream().map(PhoneDto::toDto).toList();
@@ -81,10 +76,8 @@ public class PhoneService {
         phoneRepository.delete(phoneEntity);
     }
 
-    public boolean deletePhoneByModel(String model) {
-        PhoneEntity phoneEntity = phoneRepository.deleteByModel(model);
-        phoneRepository.delete(phoneEntity);
-        return false;
+    public Optional<PhoneDto> getPhoneById(Long id) {
+        PhoneEntity phoneEntity = phoneRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("phone is not found!"));
+        return Optional.of(PhoneDto.toDto(phoneEntity));
     }
-
 }
