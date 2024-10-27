@@ -11,6 +11,9 @@ import java.util.Optional;
 public interface PhoneRepository extends JpaRepository<PhoneEntity, Long> {
     List<PhoneEntity> findByBrand(String brand);
     List<PhoneEntity> findByModel(String model);
+    // PhoneRepository.java
+    Optional<PhoneEntity> findTopByOrderByIdDesc();
+
     PhoneEntity deleteByModel(String model);
 
 }

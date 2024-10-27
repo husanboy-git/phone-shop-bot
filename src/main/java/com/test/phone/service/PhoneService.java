@@ -57,13 +57,24 @@ public class PhoneService {
 
 
     @Transactional
-    public PhoneDto updatePhone(Long id, PhoneDto phoneDto) {
+    public PhoneDto updatePhone(Long id, PhoneDto phoneDto, File imageFile) throws IOException {
+        if (!ImageUtils.isValidImageFile(imageFile)) {
+            throw new IllegalArgumentException("Invalid image file.");
+        }
+
+        String imagePath = "images/" + phoneDto.model() + "_" + System.currentTimeMillis() + ".png";
+        File destinationFile = new File(imagePath);
+
+        try (FileOutputStream fos = new FileOutputStream(destinationFile)) {
+            fos.write(Files.readAllBytes(imageFile.toPath()));
+        }
+
         PhoneEntity entity = phoneRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Phone not found"));
         entity.setBrand(phoneDto.brand());
         entity.setModel(phoneDto.model());
         entity.setPrice(phoneDto.price());
-        entity.setImage(phoneDto.imagePath());
+        entity.setImage(imagePath);
         entity.setCondition(phoneDto.condition());
         phoneRepository.save(entity);
         return PhoneDto.toDto(entity);
@@ -74,6 +85,11 @@ public class PhoneService {
         PhoneEntity phoneEntity = phoneRepository.findById(id).orElseThrow(
                 () -> new IllegalArgumentException("Phone not found"));
         phoneRepository.delete(phoneEntity);
+    }
+
+    // PhoneService.java
+    public Optional<PhoneEntity> getLatestPhone() {
+        return phoneRepository.findTopByOrderByIdDesc();  // ID 기준으로 최신 휴대폰 조회
     }
 
     public Optional<PhoneDto> getPhoneById(Long id) {
