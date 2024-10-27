@@ -27,7 +27,7 @@ public class PhoneEntity {
 
     private String image;
 
-    @Column(name = "`condition`", length = 20, nullable = false, columnDefinition = "VARCHAR(20) DEFAULT 'used'")
+    @Column(name = "`condition`")
     private String condition;
 
     public static PhoneEntity of(String brand, String model, double price, String image, String condition) {

@@ -6,7 +6,6 @@ import com.test.phone.model.dto.UserDto;
 import com.test.phone.model.entity.PhoneEntity;
 import com.test.phone.service.PhoneService;
 import com.test.phone.service.UserService;
-import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -53,35 +52,21 @@ public class PhoneBot extends TelegramLongPollingBot {
     private final Map<Long, String> userState = new HashMap<>(); //사용자의 상태 관리
     private final Map<Long, PhoneEntity> phoneDataBuffer = new HashMap<>(); // 폰 데이터 임시 저장 (사진과 정보를 함께 저장)
 
+    private static final String WAITING_FOR_BRAND = "WAITING_FOR_BRAND";
+    private static final String WAITING_FOR_MODEL = "WAITING_FOR_MODEL";
+    private static final String WAITING_FOR_PRICE = "WAITING_FOR_PRICE";
+    private static final String WAITING_FOR_CONDITION = "WAITING_FOR_CONDITION";
     private static final String WAITING_FOR_PHOTO = "WAITING_FOR_PHOTO";
+
+    private static final String WAITING_FOR_ADD_ADMIN = "WAITING_FOR_ADD_ADMIN";
+    private static final String WAITING_FOR_REMOVE_ADMIN = "WAITING_FOR_REMOVE_ADMIN";
 
     @Override
     public void onUpdateReceived(Update update) {
         if(update.hasMessage()) {
             Long chatId = update.getMessage().getChatId();
-            if(update.getMessage().hasPhoto() && WAITING_FOR_PHOTO.equals(userState.get(chatId))) {
-                try {
-                    // 가장 큰 사진 파일을 선택
-                    String fileId = update.getMessage().getPhoto().stream()
-                            .max(Comparator.comparing(photoSize -> photoSize.getFileSize()))
-                            .get().getFileId();
-                    String filePath = getFilePath(fileId);  // getFilePath 메서드를 통해 파일 경로 획득
-                    File imageFile = downloadAndCompressImage(filePath);  // 텔레그램 서버에서 파일 다운로드
-
-                    // 이전에 입력된 폰 정보를 가져옴
-                    PhoneEntity phoneEntity = phoneDataBuffer.get(chatId);
-
-                    // PhoneService를 통해 폰 정보와 사진 파일을 함께 저장
-                    phoneService.addPhone(PhoneDto.toDto(phoneEntity), imageFile);
-                    sendMessage(chatId, "휴대폰이 성공적으로 추가되었습니다!");
-
-                    // 상태 초기화
-                    phoneDataBuffer.remove(chatId);
-                    userState.remove(chatId);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    sendMessage(chatId, "사진 처리 중 오류가 발생했습니다.");
-                }
+            if(update.getMessage().hasPhoto()) {
+                handlePhotoUpload(chatId, update);
             } else if(update.getMessage().hasText()){
                 String messageText = update.getMessage().getText();
                 Long telegramId = update.getMessage().getFrom().getId();
@@ -91,21 +76,142 @@ public class PhoneBot extends TelegramLongPollingBot {
                 if(messageText.startsWith("/start")) {
                     handleStartCommand(existingUser, chatId, userName, telegramId);
                 } else if (messageText.startsWith("/add_admin")) {          //admin logic
-                    handleAddAdminCommand(chatId, messageText, userName);
+                    handleAddAdminCommand(chatId);
                 } else if (messageText.startsWith("/remove_admin")) {
-                    handleRemoveAdminCommand(chatId, messageText, userName);
+                    handleRemoveAdminCommand(chatId, messageText);
                 } else if(messageText.equals("IPHONE") || messageText.equals("SAMSUNG") || messageText.equals("OTHER")) {
                     handlePhoneBrandSelection(chatId, messageText);
-                } else if (messageText.startsWith("/addphone")) {
-                    handleAddPhoneCommand(chatId, messageText, telegramId);
+                } else {
+                    String state = userState.get(chatId);
+                    if (WAITING_FOR_ADD_ADMIN.equals(state)) { // 비밀번호 입력 대기 중인 경우
+                        verifyAddAdmin(chatId, messageText, userName);
+                    } else if(WAITING_FOR_REMOVE_ADMIN.equals(state)) {
+                        verifyRemoveAdmin(chatId, messageText, userName);
+                    }
                 }
+                handleMessage(chatId, messageText, telegramId);
             }
-
         } else if (update.hasCallbackQuery()) {  // 모델 선택에 대한 callback 처리
             String callbackData = update.getCallbackQuery().getData();
             Long callbackChatId = update.getCallbackQuery().getMessage().getChatId();
             handleModelSelection(callbackChatId, callbackData);
+            if ("edit_phone".equals(callbackData)) {
+                handleEditPhoneCommand(callbackChatId);
+            } else if ("delete_phone".equals(callbackData)) {
+                handleDeletePhoneCommand(callbackChatId);
+            }
         }
+    }
+
+    private void verifyAddAdmin(Long chatId, String inputPassword, String userName) {
+        if(adminPassword.equals(inputPassword)) {
+            try {
+                // 관리자 권한 부여 로직 호출
+                userService.addAdmin(chatId, userName);
+                sendMessage(chatId, "축하합니다! " + userName + "님이 관리자로 추가되었습니다.");
+            } catch (IllegalArgumentException e) {
+                sendMessage(chatId, e.getMessage());
+            }
+        } else {
+            sendMessage(chatId, "잘못된 비밀번호입니다. 다시 시도해 주세요.");
+        }
+        userState.remove(chatId); // 상태 초기화
+    }
+
+    private void verifyRemoveAdmin(Long chatId, String inputPassword, String userName) {
+        if (adminPassword.equals(inputPassword)) {
+            try {
+                userService.removeAdmin(chatId);
+                sendMessage(chatId, "괸리자 " + userName + "님이 성공적으로 삭제되었습니다!");
+            } catch (IllegalArgumentException e) {
+                sendMessage(chatId, e.getMessage());
+            }
+        } else {
+            sendMessage(chatId, "잘못된 비밀번호입니다. 다시 시도해 주세요.");
+        }
+        userState.remove(chatId);
+    }
+
+    private void handleMessage(Long chatId, String messageText, Long telegramId) {
+        Optional<UserDto> user = userService.getUserByTelegramId(telegramId);
+        String state = userState.getOrDefault(chatId, "");
+        if(user.isPresent() && user.get().role() == Role.ADMIN) {
+            switch (state) {
+                case WAITING_FOR_BRAND -> {
+                    phoneDataBuffer.put(chatId, new PhoneEntity());
+                    phoneDataBuffer.get(chatId).setBrand(messageText);
+                    userState.put(chatId, WAITING_FOR_MODEL);
+                    sendMessage(chatId, "모델명을 입력해 주세요:");
+                }
+                case WAITING_FOR_MODEL -> {
+                    phoneDataBuffer.get(chatId).setModel(messageText);
+                    userState.put(chatId, WAITING_FOR_PRICE);
+                    sendMessage(chatId, "가격을 입력해 주세요:");
+                }
+                case WAITING_FOR_PRICE -> {
+                    try {
+                        phoneDataBuffer.get(chatId).setPrice(Double.parseDouble(messageText));
+                        userState.put(chatId, WAITING_FOR_CONDITION);
+                        sendMessage(chatId, "상태를 입력해 주세요 (예: 새 제품, 중고):");
+                    } catch (NumberFormatException e) {
+                        sendMessage(chatId, "유효한 숫자를 입력해 주세요.");
+                    }
+                }
+                case WAITING_FOR_CONDITION -> {
+                    phoneDataBuffer.get(chatId).setCondition(messageText);
+                    userState.put(chatId, WAITING_FOR_PHOTO);
+                    sendMessage(chatId, "휴대폰의 사진을 업로드해 주세요:");
+                }
+                default -> {
+                    if ("/addphone".equals(messageText)) {
+                        userState.put(chatId, WAITING_FOR_BRAND);
+                        sendMessage(chatId, "브랜드를 입력해 주세요:");
+                    }
+                }
+            }
+        }
+    }
+
+
+    private void handlePhotoUpload(Long chatId, Update update) {
+        if (WAITING_FOR_PHOTO.equals(userState.get(chatId))) {
+            try {
+                // 가장 큰 사진 파일을 선택
+                String fileId = update.getMessage().getPhoto().stream()
+                        .max(Comparator.comparing(photoSize -> photoSize.getFileSize()))
+                        .get().getFileId();
+                String filePath = getFilePath(fileId);  // getFilePath 메서드를 통해 파일 경로 획득
+                File imageFile = downloadAndCompressImage(filePath);  // 텔레그램 서버에서 파일 다운로드
+
+                // 이전에 입력된 폰 정보를 가져옴
+                PhoneEntity phoneEntity = phoneDataBuffer.get(chatId);
+
+                // PhoneService를 통해 폰 정보와 사진 파일을 함께 저장
+                phoneService.addPhone(PhoneDto.toDto(phoneEntity), imageFile);
+                sendMessage(chatId, "휴대폰이 성공적으로 추가되었습니다!");
+
+                // 상태 초기화
+                phoneDataBuffer.remove(chatId);
+                userState.remove(chatId);
+            } catch (Exception e) {
+                e.printStackTrace();
+                sendMessage(chatId, "사진 처리 중 오류가 발생했습니다.");
+            }
+        }
+    }
+
+
+    // 수정 명령 처리
+    private void handleEditPhoneCommand(Long chatId) {
+        sendMessage(chatId, "수정할 휴대폰의 새로운 정보를 입력해 주세요. 형식: [브랜드] [모델] [가격] [상태]");
+        userState.put(chatId, "WAITING_FOR_EDIT");
+    }
+
+    // 삭제 명령 처리
+    private void handleDeletePhoneCommand(Long chatId) {
+        sendMessage(chatId, "휴대폰이 성공적으로 삭제되었습니다.");
+        phoneService.deletePhone(chatId);
+        userState.remove(chatId);
     }
 
     private String getFilePath(String fileId) throws TelegramApiException {
@@ -148,55 +254,16 @@ public class PhoneBot extends TelegramLongPollingBot {
         return compressedImageFile;
     }
 
-
     // add admin method
-    private void handleAddAdminCommand(Long chatId, String messageText, String userName) {
-        // /add_admin 며령어에서 비밀번호 분리
-        String[] parts = messageText.split(" ");
-        if(parts.length < 2) {
-            sendMessage(chatId, "관리자로 추가되려면 /add_admin <비밀번호> 형식으로 입력해 주세요.");
-            return;
-        }
-
-        String inputPassword = parts[1];
-
-        if(!adminPassword.equals(inputPassword)) {
-            sendMessage(chatId, "잘못된 비밀번호 입니다. 관리자 권한을 얻을 수 없습니다.");
-            return;
-        }
-
-        try {
-            // 관리자를 추가하는 로직 호출
-            userService.addAdmin(chatId, userName);
-            sendMessage(chatId, "축하합니다! " + userName + "님! " + "관리로 승급하셨습니다 \uD83C\uDF89");
-        } catch (IllegalArgumentException e) {
-            sendMessage(chatId, e.getMessage());
-        }
+    private void handleAddAdminCommand(Long chatId) {
+        userState.put(chatId, WAITING_FOR_ADD_ADMIN);
+        sendMessage(chatId, "관리자 비밀번호를 입력해 주세요:");
     }
 
     // remove admin method
-    private void handleRemoveAdminCommand(Long chatId, String messageText, String userName) {
-        // /remove_admin 며령어에서 비밀번호 분리
-        String[] parts = messageText.split(" ");
-        if(parts.length < 2) {
-            sendMessage(chatId, "관리자로 제거하려면 /remove_admin <비밀번호> 형식으로 입력해 주세요.");
-            return;
-        }
-
-        String inputPassword = parts[1];
-
-        if(!adminPassword.equals(inputPassword)) {
-            sendMessage(chatId, "잘못된 비밀번호 입니다. 관리자 권한을 얻을 수 없습니다.");
-            return;
-        }
-
-        try {
-            // 관리자를 제거하는 로직 호출
-            userService.removeAdmin(chatId);
-            sendMessage(chatId, "관리자 권한이 성공적으로 제거되었습니다.");
-        } catch (IllegalArgumentException e) {
-            sendMessage(chatId, e.getMessage());
-        }
+    private void handleRemoveAdminCommand(Long chatId, String messageText) {
+        userState.put(chatId, WAITING_FOR_REMOVE_ADMIN);
+        sendMessage(chatId, "관리자 비밀번호를 입력해 주세요:");
     }
 
 
@@ -257,10 +324,10 @@ public class PhoneBot extends TelegramLongPollingBot {
                 // 이미지가 있을 경우 이미지를 전송
                 if (phone.imagePath() != null && !phone.imagePath().toString().isEmpty()) {
                     String caption = String.format(
-                            "💵 가격: %s$\n" +
-                                    "📝 상태: %s\n" +
-                                    "\uD83D\uDCF1 모델: %s",
-                            phone.price(), phone.condition(), phone.model()
+                            "\uD83D\uDCF1 모델: %s\n" +
+                                    "💵 가격: %s$\n" +
+                                    "📝 상태: %s\n",
+                            phone.model(), phone.price(), phone.condition()
                     );
                     sendPhoto(chatId, phone.imagePath(), caption);  // 이미지와 캡션을 함께 전송
                 } else {
@@ -275,8 +342,32 @@ public class PhoneBot extends TelegramLongPollingBot {
     private void sendPhoto(Long chatId, String imagePath, String caption) {
         SendPhoto sendPhotoRequest = new SendPhoto();
         sendPhotoRequest.setChatId(chatId.toString());
-        sendPhotoRequest.setPhoto(new InputFile(new File(imagePath)));  // 이미지 파일 경로를 입력
-        sendPhotoRequest.setCaption(caption);  // 휴대폰 정보를 캡션으로 추가
+        sendPhotoRequest.setPhoto(new InputFile(new File(imagePath)));
+        sendPhotoRequest.setCaption(caption);
+
+        // 현재 사용자 권한 확인
+        Optional<UserDto> user = userService.getUserByTelegramId(chatId);
+        boolean isAdmin = user.isPresent() && user.get().role() == Role.ADMIN;
+
+        if (isAdmin) {
+            // 관리자에게만 수정 및 삭제 버튼 추가
+            InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
+
+            InlineKeyboardButton editButton = new InlineKeyboardButton();
+            editButton.setText("수정");
+            editButton.setCallbackData("edit_phone");
+
+            InlineKeyboardButton deleteButton = new InlineKeyboardButton();
+            deleteButton.setText("삭제");
+            deleteButton.setCallbackData("delete_phone");
+
+            List<InlineKeyboardButton> rowInline = Arrays.asList(editButton, deleteButton);
+            rowsInline.add(rowInline);
+
+            inlineKeyboard.setKeyboard(rowsInline);
+            sendPhotoRequest.setReplyMarkup(inlineKeyboard);
+        }
 
         try {
             execute(sendPhotoRequest);  // 사진 전송
@@ -284,31 +375,6 @@ public class PhoneBot extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
-
-    private void handleAddPhoneCommand(Long chatId, String messageText, Long telegramId) {
-        Optional<UserDto> user = userService.getUserByTelegramId(telegramId);
-
-
-        if(user.isPresent() && user.get().role() == Role.ADMIN) {
-            String[] parts = messageText.split(" ", 5);
-            if(parts.length == 5) {
-                String brand = parts[1];
-                String model = parts[2];
-                double price = Double.parseDouble(parts[3]);
-                String condition = parts[4];
-
-                // 새로운 모델 추가
-                sendMessage(chatId, "휴대폰의 사진을 업로드해 주세요!");
-                phoneDataBuffer.put(chatId, PhoneEntity.of(brand, model, price, null, condition));
-                userState.put(chatId, WAITING_FOR_PHOTO);
-            } else {
-                sendMessage(chatId, "형식이 올바르지 않습니다. /addphone [브랜드] [모델] [가격] [상태] 형식으로 입력해 주세요.");
-            }
-        } else {
-            sendMessage(chatId, "이 명령어를 사용할 권한이 없습니다.");
-        }
-    }
-
 
     private void showMenuButtons(Long chatId) {
         SendMessage message = new SendMessage();
