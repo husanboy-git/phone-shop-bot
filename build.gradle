@@ -23,9 +23,9 @@ repositories {
 	mavenCentral()
 }
 
-jar {
+/*jar {
 	archiveFileName = 'phone.jar' // 실제 프로젝트 이름으로 변경
-}
+}*/
 
 
 dependencies {

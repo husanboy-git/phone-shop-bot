@@ -140,7 +140,7 @@ public class PhoneBot extends TelegramLongPollingBot {
     }
 
     // handleAddPhoneCommand와 handleEditPhoneCommand를 통해 각각의 상태 진입
-    private void handleAddPhoneCommand(Long chatId) {
+    void handleAddPhoneCommand(Long chatId) {
         phoneDataBuffer.put(chatId, new PhoneEntity()); // 새로운 휴대폰 엔티티를 생성
         userState.put(chatId, "ADDING_BRAND");
         sendMessage(chatId, "Qo‘shiladigan telefon brendini kiriting:");
@@ -503,7 +503,7 @@ public class PhoneBot extends TelegramLongPollingBot {
         }
     }
 
-    private void sendMessage(Long chatId, String text) {
+    void sendMessage(Long chatId, String text) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
         message.setText(text);
