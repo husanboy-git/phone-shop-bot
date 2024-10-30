@@ -105,6 +105,36 @@ public class PhoneBot extends TelegramLongPollingBot {
                 handleEditPhoneCommand(callbackChatId);
             } else if ("delete_phone".equals(callbackData)) {
                 handleDeletePhoneCommand(callbackChatId);
+            } else if ("order_phone_".equals(callbackData)) {
+                // URL을 포함한 메시지를 생성
+                String channelUrl = "https://t.me/Husanboy1995hakimov19";
+                String messageText = "yanada ko'proq ma'lumotlar uchum admin bilan ulaning.";
+
+                // 인라인 키보드 버튼 생성
+                InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+                InlineKeyboardButton channelButton = new InlineKeyboardButton();
+                channelButton.setText("\uD83D\uDC64 admin bilan aloqa");
+                channelButton.setUrl(channelUrl);  // 채널 링크 설정
+
+                List<InlineKeyboardButton> keyboardButtonsRow = new ArrayList<>();
+                keyboardButtonsRow.add(channelButton);
+
+                List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+                rowList.add(keyboardButtonsRow);
+
+                inlineKeyboardMarkup.setKeyboard(rowList);
+
+                // 메시지를 전송
+                SendMessage message = new SendMessage();
+                message.setChatId(callbackChatId);
+                message.setText(messageText);
+                message.setReplyMarkup(inlineKeyboardMarkup);
+
+                try {
+                    execute(message);  // 메시지를 Telegram API를 통해 전송
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -114,6 +144,7 @@ public class PhoneBot extends TelegramLongPollingBot {
         phoneDataBuffer.put(chatId, new PhoneEntity()); // 새로운 휴대폰 엔티티를 생성
         userState.put(chatId, "ADDING_BRAND");
         sendMessage(chatId, "Qo‘shiladigan telefon brendini kiriting:");
+        sendMessage(chatId, "Masalan: SAMSUNG, IPHONE, OTHER");
     }
 
     private void verifyAddAdmin(Long chatId, String inputPassword, String userName) {
@@ -157,6 +188,7 @@ public class PhoneBot extends TelegramLongPollingBot {
                     phoneDataBuffer.get(chatId).setBrand(messageText);
                     userState.put(chatId, ADDING_MODEL);
                     sendMessage(chatId, "Qo'shmoqchi bo'lgan model nomini kiriting:");
+                    sendMessage(chatId, "Masalan: 12pro, A23..");
                 }
                 case ADDING_MODEL -> {
                     phoneDataBuffer.get(chatId).setModel(messageText);
@@ -206,11 +238,11 @@ public class PhoneBot extends TelegramLongPollingBot {
                 default -> {
                     if ("/add_phone".equals(messageText)) {
                         handleAddPhoneCommand(chatId);
-                    } else if ("/edit_phone".equals(messageText)) {
-                        handleEditPhoneCommand(chatId);
                     }
                 }
             }
+        } else if(user.isPresent() && user.get().role() == Role.USER && messageText.startsWith("/add_phone")){
+            sendMessage(chatId, "Bu buyruqni faqat Admin amalga oshira oladi!!");
         }
     }
 
@@ -256,7 +288,6 @@ public class PhoneBot extends TelegramLongPollingBot {
             sendMessage(chatId, "O'zgartirish uchun telefon mavjud emas.");
         }
     }
-
 
     private void handleDeletePhoneCommand(Long chatId) {
         Optional<PhoneEntity> latestPhone = phoneService.getLatestPhone();  // 가장 최근에 추가된 휴대폰 조회
@@ -389,9 +420,7 @@ public class PhoneBot extends TelegramLongPollingBot {
                     sendMessage(chatId, "Rasm mavjud emas.");
                 }
             }
-        } /*else {
-            sendMessage(chatId, "선택한 모델의 정보를 찾을 수 없습니다.");
-        }*/
+        }
     }
 
     private void sendPhoto(Long chatId, String imagePath, String caption) {
@@ -399,6 +428,23 @@ public class PhoneBot extends TelegramLongPollingBot {
         sendPhotoRequest.setChatId(chatId.toString());
         sendPhotoRequest.setPhoto(new InputFile(new File(imagePath)));
         sendPhotoRequest.setCaption(caption);
+
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+
+        InlineKeyboardButton orderButton = new InlineKeyboardButton();
+        orderButton.setText("🛒  Buyurtma berish  🛒");
+        orderButton.setCallbackData("order_phone_");
+
+        List<InlineKeyboardButton> row = new ArrayList<>();
+        row.add(orderButton);
+        keyboard.add(row);
+
+        inlineKeyboardMarkup.setKeyboard(keyboard);
+        sendPhotoRequest.setReplyMarkup(inlineKeyboardMarkup);
 
         // 현재 사용자 권한 확인
         Optional<UserDto> user = userService.getUserByTelegramId(chatId);

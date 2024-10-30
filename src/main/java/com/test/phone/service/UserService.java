@@ -36,7 +36,7 @@ public class UserService {
         if(existingUser.isPresent()) {
             UserEntity user = existingUser.get();
             if(user.getRole() == Role.ADMIN) {
-                throw new IllegalArgumentException("이 사용자가 이미 관리자로 승급되었습니다.");
+                throw new IllegalArgumentException("siz admin bo'lib bo'lgansiz!!");
             }
             user.setRole(Role.ADMIN);      // 역할을 ADMIN으로 변경
             userRepository.save(user);
