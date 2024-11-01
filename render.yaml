@@ -3,7 +3,7 @@ services:
     name: phone
     env: docker
     plan: free
-    buildCommand: ./gradlew clean build
+    buildCommand: gradlew.bat clean build
     envVars:
       - key: DATABASE_URL
         value: "postgresql://phone_db_7b1j_user:7CvIo7IoGUjdS6GazuMyESm9M0Zy3yvM@dpg-csibd2aj1k6c73aq20o0-a:5432/phone_db_7b1j"  # Render의 PostgreSQL 데이터베이스 URL
