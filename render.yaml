@@ -6,11 +6,11 @@ services:
     buildCommand: ./gradlew clean build
     envVars:
       - key: DATABASE_URL
-        value: "postgresql://username:password@hostname:port/phone_db"  # Render의 PostgreSQL 데이터베이스 URL
+        value: "postgresql://phone_db_7b1j_user:7CvIo7IoGUjdS6GazuMyESm9M0Zy3yvM@dpg-csibd2aj1k6c73aq20o0-a:5432/phone_db_7b1j"  # Render의 PostgreSQL 데이터베이스 URL
       - key: DATABASE_USERNAME
-        value: "root"  # Render의 데이터베이스 사용자 이름
+        value: "phone_db_7b1j_user"  # Render의 데이터베이스 사용자 이름
       - key: DATABASE_PASSWORD
-        value: "123456"  # Render의 데이터베이스 비밀번호
+        value: "7CvIo7IoGUjdS6GazuMyESm9M0Zy3yvM"  # Render의 데이터베이스 비밀번호
       - key: TELEGRAM_BOT_USERNAME
         value: "@OldPhoneBot"
       - key: TELEGRAM_BOT_TOKEN
