@@ -6,7 +6,7 @@ services:
     buildCommand: ./mvnw clean package
     startCommand: java -jar build/libs/phone-0.0.1-SNAPSHOT.jar
     envVars:
-      DATABASE_URL: jdbc:mysql://localhost:3306/phone_db
+      DATABASE_URL: "jdbc:mysql://localhost:3306/phone_db"
       DATABASE_USERNAME: root
       DATABASE_PASSWORD: 123456
       TELEGRAM_BOT_USERNAME: "@OldPhoneBot"
