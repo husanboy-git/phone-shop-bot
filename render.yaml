@@ -6,11 +6,17 @@ services:
     buildCommand: ./mvnw clean package
     startCommand: java -jar build/libs/phone-0.0.1-SNAPSHOT.jar
     envVars:
-      DATABASE_URL: "jdbc:mysql://localhost:3306/phone_db"
-      DATABASE_USERNAME: root
-      DATABASE_PASSWORD: 123456
-      TELEGRAM_BOT_USERNAME: "@OldPhoneBot"
-      TELEGRAM_BOT_TOKEN: "8163853097:AAGpjtmupYG4rjeCNcV5xq5z4e2ltTCBKeU"
-      ADMIN_PASSWORD: "Java2023"
+      - key: DATABASE_URL
+        value: "jdbc:mysql://localhost:3306/phone_db"
+      - key: DATABASE_USERNAME
+        value: "root"
+      - key: DATABASE_PASSWORD
+        value: "123456"
+      - key: TELEGRAM_BOT_USERNAME
+        value: "@OldPhoneBot"
+      - key: TELEGRAM_BOT_TOKEN
+        value: "8163853097:AAGpjtmupYG4rjeCNcV5xq5z4e2ltTCBKeU"
+      - key: ADMIN_PASSWORD
+        value: "Java2023"
     healthCheckPath: /actuator/health # 필요에 따라 health check 경로를 설정하세요.
     region: oregon # 지역 설정 (필요시 변경)
