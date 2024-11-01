@@ -1,15 +1,12 @@
 spring:
   datasource:
-    url: ${DATABASE_URL}
-    username: ${DATABASE_USERNAME}
-    password: ${DATABASE_PASSWORD}
-#    url: jdbc:mysql://localhost:3306/phone_db
-#    username: root
-#    password: 123456
+    url: jdbc:mysql://localhost:3306/phone_db
+    username: root
+    password: 123456
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
@@ -19,11 +16,8 @@ spring:
 
 telegram:
   bot:
-    username: ${TELEGRAM_BOT_USERNAME} #"@OldPhoneBot"
-    token: ${TELEGRAM_BOT_TOKEN} #"8163853097:AAGpjtmupYG4rjeCNcV5xq5z4e2ltTCBKeU"
+    username: "@OldPhoneBot"
+    token: "8163853097:AAGpjtmupYG4rjeCNcV5xq5z4e2ltTCBKeU"
 
 admin:
-  password: ${ADMIN_PASSWORD}  #"Java2023"
-
-server:
-  port: ${PORT}
+  password: "Java2023"
